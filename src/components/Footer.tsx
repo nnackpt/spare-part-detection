@@ -1,8 +1,7 @@
 export function Footer() {
   return (
-    <footer className="fixed bottom-0 left-0 right-0 w-full bg-[#005496] py-1">
+    <header className="fixed top-0 left-0 right-0 w-full bg-[#005496] py-3 z-50">
       <div className="w-full px-5 flex items-center">
-        {/* มุมซ้าย: รูปภาพชิดซ้ายสุด */}
         <div className="flex items-center">
           <img
             src="/autoliv_logo.png"
@@ -11,6 +10,6 @@ export function Footer() {
           />
         </div>
       </div>
-    </footer>
+    </header>
   );
 }

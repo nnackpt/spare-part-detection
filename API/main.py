@@ -1,3 +1,9 @@
+""" Build exe command
+
+- pyinstaller --noconfirm --onedir --console --name "SparePart" --collect-all ultralytics --hidden-import="uvicorn.logging" --hidden-import="uvicorn.loops" --hidden-import="uvicorn.loops.auto" --hidden-import="uvicorn.protocols" --hidden-import="uvicorn.protocols.http" --hidden-import="uvicorn.protocols.http.auto" --hidden-import="uvicorn.lifespan" --hidden-import="uvicorn.lifespan.on" main.py
+
+"""
+
 import asyncio
 import base64
 import os
@@ -28,6 +34,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.websockets import WebSocketState
+
+import uvicorn 
+import multiprocessing
 
 try:
     from ultralytics import YOLO
@@ -389,5 +398,6 @@ if os.path.exists(STATIC_DIR) and os.path.isdir(STATIC_DIR):
 else:
     print(f"Warning: The '{STATIC_DIR}' directory was not found. Please run 'npm run build' in your Next.js project to generate the static files.")
 
-# if __name__ == "__main__":
-#     uvicorn.run(app, host="0.0.0.0", port=8080)
+if __name__ == "__main__":
+    multiprocessing.freeze_support() 
+    uvicorn.run(app, host="0.0.0.0", port=8080)

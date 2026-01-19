@@ -14,7 +14,7 @@ type WsPayload = {
 };
 
 function resolveApiBase(): string {
-  const raw = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
+  const raw = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080";
   return raw.replace(/\/+$/, "");
 }
 
@@ -121,6 +121,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState<Date | null>(null);
   const [labels, setLabels] = useState<string[]>([]);
+  const [detections, setDetections] = useState<Detection[]>([])
 
   // Clock
   useEffect(() => {
@@ -172,10 +173,9 @@ export default function HomePage() {
         try {
           const data = JSON.parse(ev.data) as WsPayload;
           if (!("error" in data) && data.detections) {
-            // Extract unique labels
-            const uniqueLabels = Array.from(
-              new Set(data.detections.map(d => d.label))
-            );
+            setDetections(data.detections);
+            
+            const uniqueLabels = Array.from(new Set(data.detections.map(d => d.label)));
             setLabels(uniqueLabels);
           }
         } catch (e) {
@@ -227,81 +227,43 @@ export default function HomePage() {
   }, [now]);
 
   const dateTimeStr = dateStr && timeStr ? `${dateStr}●${timeStr}` : null;
+  const target = detections.length > 0 ? detections[0] : null;
 
   return (
-    <main className="min-h-screen w-full text-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-3xl">
-        {/* {isLoading && (
-          <div className="mb-4 p-4 bg-blue-500/20 border border-blue-500/40 rounded-lg text-blue-200">
-            <div className="flex items-center gap-2">
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-              </svg>
-              Connecting to camera...
-            </div>
-          </div>
-        )} */}
+    <main className="min-h-screen w-full text-gray-100 flex p-4 pt-20 gap-4 bg-[#ffffff]">
+      <div className="flex-[2] flex flex-col">
+        <div className="relative h-full rounded-2xl overflow-hidden border border-gray-200 bg-black shadow-sm">
+          <img
+            ref={imgRef}
+            src={STREAM_URL}
+            alt="Live camera feed"
+            className="w-full h-full object-contain"
+          />
+        </div>
+      </div>
 
-        {error && (
-          <div className="mb-4 p-4 bg-red-500/20 border border-red-500/40 rounded-lg text-red-200">
-            {error}
-          </div>
-        )}
-
-        <div className="relative mx-auto w-full">
-          {/* Label bar */}
-          <div className="absolute left-0 bottom-full mb-3 z-20">
-            <div className="rounded-full bg-gray-900/70 border border-gray-800 px-3 py-2 backdrop-blur">
-              {labels.length ? (
-                <div className="flex flex-wrap gap-2 items-center">
-                  {labels.map((l, i) => (
-                    <span
-                      key={`${l}-${i}`}
-                      className="text-sm font-medium px-2.5 py-1 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-200"
-                    >
-                      Location: {l}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-sm text-gray-400">No detections</span>
-              )}
-            </div>
-          </div>
-
-          {/* LIVE + Time */}
-          <div className="absolute right-0 bottom-full mb-3 z-20">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium px-2.5 py-1 rounded-full bg-gray-900/70 border border-gray-800 text-gray-200 backdrop-blur inline-flex items-center gap-1">
-                <svg aria-hidden viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" />
-                  <line x1="16" y1="2" x2="16" y2="6" />
-                  <line x1="8" y1="2" x2="8" y2="6" />
-                  <line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-                {dateTimeStr ?? "--/--/----●--:--:--"}
+      <div className="flex-1 flex flex-col h-full justify-center py-12">
+        <div className="flex flex-col gap-6 h-full max-h-[90%]">
+          
+            <div className={`p-8 flex flex-col justify-center items-center flex-1 rounded-3xl shadow-xl w-full transition-colors duration-300 ${target ? 'bg-emerald-600' : 'bg-emerald-600/90'}`}>
+              <span className={`text-xl font-bold uppercase tracking-widest block mb-6 ${target ? 'text-emerald-100' : 'text-white/70'}`}>
+                Location
               </span>
-
-              {/* <span className={`text-sm font-semibold px-2.5 py-1 rounded-full ${
-                isConnected 
-                  ? "bg-[#CCF1C8] border-[#548664] text-[#36BC55]"
-                  : "bg-gray-500/20 border-gray-500/40 text-gray-400"
-              } border`}>
-                ● {isConnected ? "LIVE" : "CONNECTING"}
-              </span> */}
+              <div className={`text-8xl xl:text-9xl font-black leading-tight break-words text-center ${target ? 'text-white' : 'text-white/50'}`}>
+                {target ? target.label : "-"}
+              </div>
             </div>
-          </div>
+            
+            <div className={`p-8 flex flex-col justify-center items-center flex-1 rounded-3xl shadow-xl w-full transition-colors duration-300 ${target ? 'bg-[#005496]' : 'bg-[#005496]/90'}`}>
+               <span className={`text-xl font-bold uppercase tracking-widest block mb-6 ${target ? 'text-blue-100' : 'text-white/70'}`}>
+                  Accuracy Rate
+               </span>
+               <div className={`text-8xl xl:text-9xl font-black leading-tight break-words text-center ${target ? 'text-white' : 'text-white/50'}`}>
+                  {/* {target ? `${(target.conf * 100).toFixed(1)}%` : "-"} */}
+                  {target ? target.conf.toFixed(2) : "-"}
+               </div>
+            </div>
 
-          {/* Camera stream */}
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-gray-800 bg-black w-full">
-            <img
-              ref={imgRef}
-              src={STREAM_URL}
-              alt="Live camera feed"
-              className="block w-full h-auto object-contain"
-            />
-          </div>
         </div>
       </div>
     </main>
