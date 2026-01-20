@@ -18,100 +18,21 @@ function resolveApiBase(): string {
   return raw.replace(/\/+$/, "");
 }
 
-// use client camera but must have HTTPS
-function toWsClientUrl(httpBase: string): string {
-  try {
-    const u = new URL(httpBase);
-    u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
-    u.pathname = "/ws-client";
-    u.search = "";
-    return u.toString();
-  } catch {
-    return "ws://localhost:8000/ws-client";
-  }
-}
-
-// server camera
-function toWsUrl(httpBase: string): string {
-  try {
-    const u = new URL(httpBase);
-    u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
-    u.pathname = "/ws";
-    u.search = "";
-    return u.toString();
-  } catch {
-    return "ws://localhost:8000/ws";
-  }
-}
-
-function drawDetections(
-  canvas: HTMLCanvasElement,
-  payload: WsPayload,
-  displayW: number,
-  displayH: number
-) {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-
-  const targetW = Math.round(displayW * dpr);
-  const targetH = Math.round(displayH * dpr);
-  if (canvas.width !== targetW || canvas.height !== targetH) {
-    canvas.width = targetW;
-    canvas.height = targetH;
-  }
-  canvas.style.width = `${displayW}px`;
-  canvas.style.height = `${displayH}px`;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.save();
-  ctx.scale(dpr, dpr);
-
-  const sx = displayW / payload.width;
-  const sy = displayH / payload.height;
-
-  ctx.lineWidth = 2;
-  ctx.font = "12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto";
-  payload.detections.forEach((d) => {
-    const x1 = d.box.x1 * sx;
-    const y1 = d.box.y1 * sy;
-    const x2 = d.box.x2 * sx;
-    const y2 = d.box.y2 * sy;
-    const w = x2 - x1;
-    const h = y2 - y1;
-
-    ctx.strokeStyle = "rgba(16,185,129,1)";
-    ctx.strokeRect(x1, y1, w, h);
-
-    const label = `${d.label} ${d.conf.toFixed(2)}`;
-    const padX = 4;
-    const padY = 2;
-    const textW = ctx.measureText(label).width;
-    const textH = 12;
-    ctx.fillStyle = "rgba(16,185,129,1)";
-    ctx.fillRect(
-      x1,
-      Math.max(0, y1 - (textH + padY * 2)),
-      textW + padX * 2,
-      textH + padY * 2
-    );
-
-    ctx.fillStyle = "rgba(0,0,0,1)";
-    ctx.fillText(label, x1 + padX, Math.max(textH + padY, y1 - padY));
-  });
-
-  ctx.restore();
-}
-
 export default function HomePage() {
-  const API_BASE = useMemo(resolveApiBase, []);
-  const STREAM_URL = `${API_BASE}/stream.mjpg`;
+  // const API_BASE = useMemo(resolveApiBase, []);
+  const [apiBase, setApiBase] = useState<string | null>(null)
+  const STREAM_URL = apiBase ? `${apiBase}/stream.mjpg`: undefined
   const WS_URL = useMemo(() => {
-    const u = new URL(API_BASE);
-    u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
-    u.pathname = "/ws";
-    return u.toString();
-  }, [API_BASE]);
+    if (!apiBase) return ""
+    try {
+      const u = new URL(apiBase)
+      u.protocol = u.protocol === "https:" ? "wss:" : "ws:"
+      u.pathname = "/ws"
+      return u.toString()
+    } catch {
+      return ""
+    }
+  }, [apiBase])
   
   const imgRef = useRef<HTMLImageElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -122,6 +43,16 @@ export default function HomePage() {
   const [now, setNow] = useState<Date | null>(null);
   const [labels, setLabels] = useState<string[]>([]);
   const [detections, setDetections] = useState<Detection[]>([])
+
+  useEffect(() => {
+    fetch("/config.json")
+      .then((res) => res.json())
+      .then((config) => {
+        const url = config.apiBase
+        setApiBase(url)
+      })
+      .catch((err) => console.error("Error loading config:", err))
+  }, [])
 
   // Clock
   useEffect(() => {
@@ -158,6 +89,8 @@ export default function HomePage() {
 
   // WebSocket for detections data
   useEffect(() => {
+    if (!WS_URL) return
+
     let alive = true;
     let reconnectTimeout: NodeJS.Timeout;
 
@@ -205,28 +138,6 @@ export default function HomePage() {
     };
   }, [WS_URL]);
 
-  const dateStr = useMemo(() => {
-    if (!now) return null;
-    return new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Bangkok",
-      month: "2-digit",
-      day: "2-digit",
-      year: "numeric",
-    }).format(now);
-  }, [now]);
-
-  const timeStr = useMemo(() => {
-    if (!now) return null;
-    return new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Bangkok",
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(now);
-  }, [now]);
-
-  const dateTimeStr = dateStr && timeStr ? `${dateStr}●${timeStr}` : null;
   const target = detections.length > 0 ? detections[0] : null;
 
   return (
